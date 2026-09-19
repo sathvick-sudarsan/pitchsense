@@ -1,6 +1,4 @@
 import cv2
-import sys 
-sys.path.append('../')
 from utils import measure_distance ,get_foot_position
 
 class SpeedAndDistance_Estimator():
