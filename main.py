@@ -1,6 +1,5 @@
 from utils import read_video, save_video
 from trackers import Tracker
-import cv2
 import numpy as np
 from team_assigner import TeamAssigner
 from player_ball_assigner import PlayerBallAssigner
@@ -30,7 +29,7 @@ def main():
     camera_movement_estimator.add_adjust_positions_to_tracks(tracks,camera_movement_per_frame)
 
 
-    # View Trasnformer
+    # Transform camera-adjusted positions into the calibrated pitch plane.
     view_transformer = ViewTransformer()
     view_transformer.add_transformed_position_to_tracks(tracks)
 
@@ -55,7 +54,7 @@ def main():
             tracks['players'][frame_num][player_id]['team_color'] = team_assigner.team_colors[team]
 
     
-    # Assign Ball Aquisition
+    # Assign ball possession using proximity to players' feet.
     player_assigner =PlayerBallAssigner()
     team_ball_control= []
     for frame_num, player_track in enumerate(tracks['players']):

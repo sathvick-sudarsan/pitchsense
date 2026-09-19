@@ -1,2 +1,12 @@
-*__pycahce__*
+__pycache__/
 *.pyc
+.venv/
+.env
+.ipynb_checkpoints/
+.runtime/
+runs/
+*.pt
+*.mp4
+*.avi
+stubs/*.pkl
+training/football-players-detection-*/
