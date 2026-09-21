@@ -1,0 +1,1 @@
+"""PitchSense package foundation."""
