@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pitchsense"
+version = "0.1.0"
+description = "Typed foundation for PitchSense football video analysis"
+requires-python = "==3.11.*"
+dependencies = ["pydantic>=2,<3"]
+
+[project.scripts]
+pitchsense = "pitchsense.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/pitchsense"]
+
+[tool.ruff]
+target-version = "py311"
+include = ["src/pitchsense/**/*.py", "tests/pitchsense/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
