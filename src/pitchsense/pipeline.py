@@ -44,11 +44,9 @@ class PipelineRunner:
         partial_results = output / "results.partial.jsonl"
         partial_manifest = output / "manifest.partial.json"
         try:
-            output.mkdir(parents=True, exist_ok=True)
+            output.mkdir(parents=True)
         except OSError as exc:
             raise OutputWriteError(f"cannot create output directory: {exc}") from exc
-        if any(path.exists() for path in (video_path, results_path, manifest_path)):
-            raise OutputWriteError(f"run artifacts already exist in {output}")
         try:
             with VideoReader(source) as reader:
                 metadata = reader.metadata
@@ -72,6 +70,15 @@ class PipelineRunner:
                                 render(frame, tracks, self.config.rendering.enabled)
                             )
                             processed += 1
+            try:
+                with VideoReader(partial_video) as output_reader:
+                    decoded = sum(1 for _ in output_reader)
+            except InputVideoError as exc:
+                raise OutputWriteError(f"cannot verify output video: {exc}") from exc
+            if decoded != processed:
+                raise OutputWriteError(
+                    f"output frame count {decoded} differs from processed {processed}"
+                )
             partial_video.replace(video_path)
             partial_results.replace(results_path)
             manifest = RunManifest(

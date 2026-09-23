@@ -65,6 +65,14 @@ class VideoReader:
                     raise EmptyVideoError(
                         f"input video has no readable frames: {self.path}"
                     )
+                if (
+                    self.metadata.reported_frame_count
+                    and index < self.metadata.reported_frame_count
+                ):
+                    raise InputVideoError(
+                        f"video ended after {index} frames; expected "
+                        f"{self.metadata.reported_frame_count}: {self.path}"
+                    )
                 break
             yield VideoFrame(
                 index=index, timestamp_s=index / self.metadata.fps, image=image

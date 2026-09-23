@@ -212,6 +212,41 @@ def test_reader_allows_unreported_frame_count(tmp_path):
         assert reader.metadata.reported_frame_count is None
 
 
+def test_reader_rejects_premature_end_of_reported_frames(tmp_path):
+    source = tmp_path / "input.avi"
+    source.touch()
+
+    class TruncatedCapture:
+        index = 0
+
+        def isOpened(self):
+            return True
+
+        def get(self, property_id):
+            if property_id == cv2.CAP_PROP_FRAME_COUNT:
+                return 8
+            if property_id == cv2.CAP_PROP_FRAME_HEIGHT:
+                return 48
+            return 12 if property_id == cv2.CAP_PROP_FPS else 64
+
+        def read(self):
+            self.index += 1
+            return (
+                (True, np.zeros((48, 64, 3), dtype=np.uint8))
+                if self.index <= 3
+                else (False, None)
+            )
+
+        def release(self):
+            pass
+
+    with pytest.raises(InputVideoError, match="ended after 3 frames"):
+        with VideoReader(
+            source, capture_factory=lambda _: TruncatedCapture()
+        ) as reader:
+            list(reader)
+
+
 def test_writer_rejects_open_failure_and_wrong_size(tmp_path):
     metadata = VideoMetadata(width=64, height=48, fps=12)
 
@@ -275,6 +310,27 @@ def test_mid_run_failure_leaves_no_manifest_or_final_artifacts(tmp_path):
     assert not (output / "results.jsonl").exists()
 
 
+def test_silent_video_frame_drop_prevents_finalization(tmp_path, monkeypatch):
+    source = tmp_path / "input.avi"
+    make_video(source)
+
+    class DroppingWriter(VideoWriter):
+        written = 0
+
+        def write(self, image):
+            self.written += 1
+            if self.written == 1:
+                super().write(image)
+
+    monkeypatch.setattr("pitchsense.pipeline.VideoWriter", DroppingWriter)
+    output = tmp_path / "run"
+    with pytest.raises(OutputWriteError, match="frame count"):
+        PipelineRunner(Detector(), Tracker(), load_pipeline_config()).run(
+            source, output
+        )
+    assert not list(output.iterdir())
+
+
 def test_refused_output_preserves_existing_artifacts(tmp_path):
     source = tmp_path / "input.avi"
     make_video(source)
@@ -287,6 +343,20 @@ def test_refused_output_preserves_existing_artifacts(tmp_path):
             source, output
         )
     assert existing.read_text() == "earlier run"
+
+
+def test_refused_output_preserves_existing_partial_artifacts(tmp_path):
+    source = tmp_path / "input.avi"
+    make_video(source)
+    output = tmp_path / "run"
+    output.mkdir()
+    existing = output / "annotated.partial.avi"
+    existing.write_text("unfinished earlier run")
+    with pytest.raises(OutputWriteError):
+        PipelineRunner(Detector(), Tracker(), load_pipeline_config()).run(
+            source, output
+        )
+    assert existing.read_text() == "unfinished earlier run"
 
 
 def test_cli_injected_backends_use_overridden_toml_config(tmp_path):
