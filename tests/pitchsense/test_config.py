@@ -7,7 +7,9 @@ from pitchsense.config import (
     PipelineConfig,
     RenderingConfig,
     TrackerConfig,
+    load_pipeline_config,
 )
+from pitchsense.errors import ConfigurationError
 
 
 def test_pipeline_config_nests_valid_models():
@@ -45,3 +47,26 @@ def test_tracker_requires_positive_buffer():
 def test_output_requires_four_ascii_codec_characters(codec):
     with pytest.raises(ValidationError):
         OutputConfig(codec=codec)
+
+
+def test_toml_load_and_explicit_cli_overrides(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('[detector]\nmodel = "from-file"\nconfidence_threshold = 0.2\n')
+    config = load_pipeline_config(path, model="from-cli", confidence=0.8, device="cuda")
+    assert config.detector.model == "from-cli"
+    assert config.detector.confidence_threshold == 0.8
+    assert config.detector.device == "cuda"
+    assert config.tracker.track_buffer > 0
+
+
+@pytest.mark.parametrize("content", ["[detector\n", "[detector]\nunknown = 1\n"])
+def test_bad_toml_and_unknown_fields_raise_configuration_error(tmp_path, content):
+    path = tmp_path / "bad.toml"
+    path.write_text(content)
+    with pytest.raises(ConfigurationError):
+        load_pipeline_config(path)
+
+
+def test_missing_toml_raises_configuration_error(tmp_path):
+    with pytest.raises(ConfigurationError):
+        load_pipeline_config(tmp_path / "missing.toml")

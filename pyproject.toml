@@ -7,7 +7,7 @@ name = "pitchsense"
 version = "0.1.0"
 description = "Typed foundation for PitchSense football video analysis"
 requires-python = "==3.11.*"
-dependencies = ["pydantic>=2,<3"]
+dependencies = ["pydantic>=2,<3", "numpy>=2,<3", "opencv-python-headless>=4.10,<5"]
 
 [project.scripts]
 pitchsense = "pitchsense.cli:main"
