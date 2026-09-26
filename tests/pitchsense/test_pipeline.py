@@ -41,7 +41,8 @@ class Detector:
 
 
 class Tracker:
-    def reset(self):
+    def reset(self, metadata):
+        self.metadata = metadata
         self.next_id = 7
 
     def update(self, detections, frame):
@@ -70,7 +71,8 @@ def test_deterministic_video_pipeline(tmp_path):
     source = tmp_path / "input.avi"
     make_video(source)
     output = tmp_path / "run"
-    artifacts = PipelineRunner(Detector(), Tracker(), load_pipeline_config()).run(
+    tracker = Tracker()
+    artifacts = PipelineRunner(Detector(), tracker, load_pipeline_config()).run(
         source, output
     )
 
@@ -96,14 +98,15 @@ def test_deterministic_video_pipeline(tmp_path):
     assert manifest["video"]["width"] == 64
     assert manifest["video"]["height"] == 48
     assert manifest["video"]["fps"] == pytest.approx(12, abs=0.01)
+    assert tracker.metadata.model_dump() == manifest["video"]
     if manifest["video"]["reported_frame_count"] is not None:
         assert manifest["video"]["reported_frame_count"] == 8
     assert manifest["input_sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
     assert manifest["input_size_bytes"] == source.stat().st_size
     assert manifest["model_identity"]["identifier"] == "test-model"
-    assert manifest["schema_version"] == "1.0.0"
+    assert manifest["schema_version"] == "2.0.0"
     assert manifest["input_filename"] == "input.avi"
-    assert manifest["tracker_config"]["track_buffer"] == 30
+    assert manifest["tracker_config"]["lost_track_buffer"] == 30
     assert manifest["pipeline_config"]["output"]["codec"] == "MJPG"
     assert manifest["application_version"]
     assert manifest["python_version"]
@@ -391,4 +394,5 @@ def test_cli_injected_backends_use_overridden_toml_config(tmp_path):
         "model": "from-cli",
         "confidence_threshold": 0.8,
         "device": "cpu",
+        "classes": ["person", "sports ball"],
     }

@@ -7,17 +7,20 @@ from collections.abc import Callable
 from importlib.metadata import version
 from pathlib import Path
 
+from pitchsense.backends import create_backend
 from pitchsense.config import PipelineConfig, load_pipeline_config
 from pitchsense.detection.base import Detector
-from pitchsense.errors import BackendUnavailableError, PitchSenseError
+from pitchsense.errors import PitchSenseError
 from pitchsense.logging import configure_logging
 from pitchsense.pipeline import PipelineRunner
 from pitchsense.tracking.base import Tracker
 
+BackendFactory = Callable[[PipelineConfig], tuple[Detector, Tracker]]
+
 
 def main(
     argv: list[str] | None = None,
-    backend_factory: Callable[[PipelineConfig], tuple[Detector, Tracker]] | None = None,
+    backend_factory: BackendFactory = create_backend,
 ) -> int:
     parser = argparse.ArgumentParser(prog="pitchsense")
     parser.add_argument(
@@ -28,8 +31,10 @@ def main(
     run.add_argument("input", type=Path)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--config", type=Path)
-    run.add_argument("--model")
-    run.add_argument("--device")
+    run.add_argument(
+        "--model", help="'rfdetr-nano' or a local RF-DETR Nano checkpoint path"
+    )
+    run.add_argument("--device", choices=("auto", "cpu", "cuda"))
     run.add_argument("--confidence", type=float)
     run.add_argument(
         "--log-level",
@@ -49,10 +54,6 @@ def main(
                 confidence=args.confidence,
             )
             configure_logging(getattr(logging, args.log_level))
-            if backend_factory is None:
-                raise BackendUnavailableError(
-                    "production detector and tracker are unavailable until PR3"
-                )
             detector, tracker = backend_factory(config)
             PipelineRunner(detector, tracker, config).run(args.input, args.output)
         except PitchSenseError as exc:

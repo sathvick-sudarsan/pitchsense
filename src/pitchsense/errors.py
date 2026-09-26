@@ -29,5 +29,9 @@ class IncompatibleModelClassesError(ModelLoadError):
     """Model classes do not satisfy the pipeline contract."""
 
 
+class InferenceError(PitchSenseError):
+    """Detector or tracker backend failed while processing a frame."""
+
+
 class OutputWriteError(PitchSenseError):
     """Output could not be written."""

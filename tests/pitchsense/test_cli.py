@@ -34,8 +34,21 @@ def test_no_arguments_shows_help():
     assert "usage: pitchsense" in result.stdout
 
 
-def test_run_reports_missing_backend(capsys, tmp_path):
+def test_run_reports_missing_inference_extra(capsys, tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "rfdetr", None)
     source = tmp_path / "input.avi"
     source.touch()
     assert main(["run", str(source), "--output", str(tmp_path / "run")]) == 2
-    assert "unavailable" in capsys.readouterr().err.lower()
+    assert "uv sync --extra inference" in capsys.readouterr().err
+    assert not (tmp_path / "run").exists()
+
+
+def test_import_and_help_do_not_load_inference_backends():
+    code = (
+        "import contextlib, sys\n"
+        "from pitchsense.cli import main\n"
+        "with contextlib.suppress(SystemExit):\n"
+        "    main(['--help'])\n"
+        "assert not {'torch', 'rfdetr', 'supervision'} & set(sys.modules)"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)

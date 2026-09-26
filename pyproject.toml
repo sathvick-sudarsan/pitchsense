@@ -9,6 +9,13 @@ description = "Typed foundation for PitchSense football video analysis"
 requires-python = "==3.11.*"
 dependencies = ["pydantic>=2,<3", "numpy>=2,<3", "opencv-python-headless>=4.10,<5"]
 
+[project.optional-dependencies]
+# Real RF-DETR Nano + ByteTrack backend. Supervision stays at 0.30.5 because
+# sv.ByteTrack is removed in 0.31 and its replacement, the standalone `trackers`
+# package, collides with this repository's inherited top-level `trackers`
+# package. Temporary until a later milestone isolates that historical namespace.
+inference = ["rfdetr==1.11.0", "supervision==0.30.5"]
+
 [project.scripts]
 pitchsense = "pitchsense.cli:main"
 
