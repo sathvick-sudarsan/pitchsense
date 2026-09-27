@@ -17,7 +17,7 @@ def test_pipeline_config_nests_valid_models():
         detector=DetectorConfig(
             backend="sample", model="weights", confidence_threshold=0.5
         ),
-        tracker=TrackerConfig(track_buffer=30),
+        tracker=TrackerConfig(),
         rendering=RenderingConfig(enabled=True),
         output=OutputConfig(codec="mp4v"),
     )
@@ -40,7 +40,29 @@ def test_detector_requires_names(fields):
 
 def test_tracker_requires_positive_buffer():
     with pytest.raises(ValidationError):
-        TrackerConfig(track_buffer=0)
+        TrackerConfig(lost_track_buffer=0)
+
+
+def test_defaults_select_rfdetr_nano_bytetrack_and_auto_device():
+    config = load_pipeline_config()
+    assert config.detector.backend == "rfdetr"
+    assert config.detector.model == "rfdetr-nano"
+    assert config.detector.device == "auto"
+    assert config.detector.classes == ["person", "sports ball"]
+    assert config.tracker.backend == "bytetrack"
+    assert config.tracker.classes == ["person"]
+
+
+def test_rejects_unknown_device():
+    with pytest.raises(ConfigurationError, match="device"):
+        load_pipeline_config(device="gpu")
+
+
+def test_tracker_classes_must_be_detected(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text('[tracker]\nclasses = ["person", "ball"]\n')
+    with pytest.raises(ConfigurationError, match=r"tracker classes \['ball'\]"):
+        load_pipeline_config(path)
 
 
 @pytest.mark.parametrize("codec", ["abc", "abcde", "💥💥💥💥"])
@@ -56,7 +78,7 @@ def test_toml_load_and_explicit_cli_overrides(tmp_path):
     assert config.detector.model == "from-cli"
     assert config.detector.confidence_threshold == 0.8
     assert config.detector.device == "cuda"
-    assert config.tracker.track_buffer > 0
+    assert config.tracker.lost_track_buffer > 0
 
 
 @pytest.mark.parametrize("content", ["[detector\n", "[detector]\nunknown = 1\n"])

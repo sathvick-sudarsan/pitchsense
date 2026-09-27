@@ -50,7 +50,7 @@ class PipelineRunner:
         try:
             with VideoReader(source) as reader:
                 metadata = reader.metadata
-                self.tracker.reset()
+                self.tracker.reset(metadata)
                 processed = 0
                 with VideoWriter(
                     partial_video, metadata, self.config.output.codec

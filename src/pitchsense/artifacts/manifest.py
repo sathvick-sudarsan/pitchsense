@@ -12,7 +12,7 @@ from pitchsense.errors import OutputWriteError
 
 
 class RunManifest(BaseModel):
-    schema_version: Literal["1.0.0"] = "1.0.0"
+    schema_version: Literal["2.0.0"] = "2.0.0"
     application_version: str
     input_filename: str
     input_size_bytes: int = Field(ge=0)

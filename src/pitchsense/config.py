@@ -2,8 +2,9 @@
 
 import tomllib
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from pitchsense.contracts import Confidence, NonBlank
 from pitchsense.errors import ConfigurationError
@@ -17,11 +18,17 @@ class DetectorConfig(_ConfigModel):
     backend: NonBlank
     model: NonBlank
     confidence_threshold: Confidence
-    device: NonBlank = "cpu"
+    device: Literal["auto", "cpu", "cuda"] = "auto"
+    classes: list[NonBlank] = Field(default=["person", "sports ball"], min_length=1)
 
 
 class TrackerConfig(_ConfigModel):
-    track_buffer: int = Field(gt=0)
+    # Field names follow supervision 0.30.5 sv.ByteTrack arguments.
+    backend: NonBlank = "bytetrack"
+    classes: list[NonBlank] = Field(default=["person"], min_length=1)
+    track_activation_threshold: Confidence = 0.25
+    lost_track_buffer: int = Field(default=30, gt=0)
+    minimum_matching_threshold: Confidence = 0.8
 
 
 class RenderingConfig(_ConfigModel):
@@ -38,6 +45,18 @@ class PipelineConfig(_ConfigModel):
     rendering: RenderingConfig
     output: OutputConfig
 
+    @model_validator(mode="after")
+    def tracked_classes_are_detected(self):
+        missing = [
+            name for name in self.tracker.classes if name not in self.detector.classes
+        ]
+        if missing:
+            raise ValueError(
+                f"tracker classes {missing} are not in detector classes "
+                f"{self.detector.classes}"
+            )
+        return self
+
 
 def load_pipeline_config(
     path: Path | None = None,
@@ -49,11 +68,10 @@ def load_pipeline_config(
     values = {
         "detector": {
             "backend": "rfdetr",
-            "model": "rf-detr-base",
+            "model": "rfdetr-nano",
             "confidence_threshold": 0.3,
-            "device": "cpu",
         },
-        "tracker": {"track_buffer": 30},
+        "tracker": {},
         "rendering": {"enabled": True},
         "output": {"codec": "MJPG"},
     }
